@@ -20,8 +20,12 @@
  *    console.log(r.height);      // => 20
  *    console.log(r.getArea());   // => 200
  */
-function Rectangle(/* width, height */) {
-  throw new Error('Not implemented');
+function Rectangle(width, height) {
+  return {
+    width,
+    height,
+    getArea: () => width * height,
+  };
 }
 
 
@@ -35,8 +39,8 @@ function Rectangle(/* width, height */) {
  *    [1,2,3]   =>  '[1,2,3]'
  *    { width: 10, height : 20 } => '{"height":10,"width":20}'
  */
-function getJSON(/* obj */) {
-  throw new Error('Not implemented');
+function getJSON(obj) {
+  return JSON.stringify(obj);
 }
 
 
@@ -51,8 +55,10 @@ function getJSON(/* obj */) {
  *    const r = fromJSON(Circle.prototype, '{"radius":10}');
  *
  */
-function fromJSON(/* proto, json */) {
-  throw new Error('Not implemented');
+function fromJSON(proto, json) {
+  const obj = JSON.parse(json);
+  const val = Object.values(obj);
+  return new proto.constructor(...val);
 }
 
 
@@ -107,36 +113,113 @@ function fromJSON(/* proto, json */) {
  *  ).stringify()
  *    => 'div#main.container.draggable + table#data ~ tr:nth-of-type(even)   td:nth-of-type(even)'
  *
- *  For more examples see unit tests.
+ *  For more examples see unit checks.
  */
 
+class Builder {
+  constructor(selector) {
+    this.counter = {
+      pseudo: 0,
+      id: 0,
+      el: 0,
+      res: '',
+    };
+    this.selector = selector;
+  }
+
+  check(order, tag) {
+    if (this.counter[tag] > 0) {
+      const errStr = 'Element, id and pseudo-element should not occur more then one time inside the selector';
+      throw new Error(errStr);
+    }
+    const last = this.counter.res[this.counter.res.length - 1];
+    if (last > order) {
+      const errStr = 'Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element';
+      throw new Error(errStr);
+    }
+    this.counter.res += order;
+  }
+
+  stringify() {
+    return this.selector;
+  }
+
+  id(idName) {
+    this.check(2, 'id');
+    this.counter.id += 1;
+    this.selector = `${this.selector}#${idName}`;
+    return this;
+  }
+
+  element(tag) {
+    this.check(1, 'el');
+    this.counter.el += 1;
+    this.selector = `${this.selector}${tag}`;
+    return this;
+  }
+
+  attr(attribute) {
+    this.check(4, false);
+    this.selector = `${this.selector}[${attribute}]`;
+    return this;
+  }
+
+  class(className) {
+    this.check(3, false);
+    this.selector = `${this.selector}.${className}`;
+    return this;
+  }
+
+  pseudoClass(pseudoClass) {
+    this.check(5, false);
+    this.selector = `${this.selector}:${pseudoClass}`;
+    return this;
+  }
+
+  pseudoElement(pseudoEl) {
+    this.check(6, 'pseudo');
+    this.counter.pseudo += 1;
+    this.selector = `${this.selector}::${pseudoEl}`;
+    return this;
+  }
+
+  combine(firstSel, combineElm, secondSel) {
+    this.selector = `${firstSel.stringify()} ${combineElm} ${secondSel.stringify()}`;
+    return this;
+  }
+}
+
 const cssSelectorBuilder = {
-  element(/* value */) {
-    throw new Error('Not implemented');
+
+  combine(firstSel, combineElm, secondSel) {
+    const item = new Builder('');
+    return item.combine(firstSel, combineElm, secondSel);
   },
 
-  id(/* value */) {
-    throw new Error('Not implemented');
+  element(tag, type = 'element') {
+    if (this.selector) return this[type](tag);
+    if (!this.selector) return new Builder('')[type](tag);
+    return 0;
   },
 
-  class(/* value */) {
-    throw new Error('Not implemented');
+  id(idName) {
+    return this.element(idName, 'id');
   },
 
-  attr(/* value */) {
-    throw new Error('Not implemented');
+  class(className) {
+    return this.element(className, 'class');
   },
 
-  pseudoClass(/* value */) {
-    throw new Error('Not implemented');
+  pseudoClass(pseudo) {
+    return this.element(pseudo, 'pseudoClass');
   },
 
-  pseudoElement(/* value */) {
-    throw new Error('Not implemented');
+  attr(attribute) {
+    return this.element(attribute, 'attr');
   },
 
-  combine(/* selector1, combinator, selector2 */) {
-    throw new Error('Not implemented');
+  pseudoElement(pseudoElm) {
+    return this.element(pseudoElm, 'pseudoElement');
   },
 };
 
